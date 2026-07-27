@@ -1,0 +1,26 @@
+name: Update OFAC Vessels
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run parser
+        run: python3 parse_ofac.py
+
+      - name: Commit vessels.json
+        run: |
+          git config user.email "ofac-bot@github-actions"
+          git config user.name "OFAC Bot"
+          git add vessels.json
+          git diff --staged --quiet || git commit -m "chore: update OFAC vessels $(date +%F)"
+          git push
