@@ -5,11 +5,13 @@ OUT = "vessels.json"
 
 print("Downloading SDN Enhanced XML...")
 urllib.request.urlretrieve(URL, "sdn.xml")
+print("Download complete.")
 
 with open("sdn.xml", "r", encoding="utf-8") as f:
     content = f.read()
 
-print("Parsing vessels...")
+print(f"File size: {len(content):,} chars — Parsing vessels...")
+
 entity_pattern = re.compile(r'<entity id="(\d+)">(.*?)</entity>', re.DOTALL)
 
 vessels = []
@@ -19,6 +21,7 @@ for m in entity_pattern.finditer(content):
         continue
 
     programs = re.findall(r'<sanctionsProgram[^>]*>([^<]+)</sanctionsProgram>', body)
+
     names_block = re.search(r'<names>(.*?)</names>', body, re.DOTALL)
     primary_name, aliases = '', []
     if names_block:
@@ -50,16 +53,16 @@ for m in entity_pattern.finditer(content):
                     imo = re.sub(r'(?i)^imo\s*', '', dn.group(1).strip())
 
     vessels.append({
-        "imo": imo,
-        "name": primary_name,
-        "aliases": aliases,
-        "programs": programs,
-        "flag": features.get("Vessel Flag", ""),
-        "call_sign": features.get("Vessel Call Sign", ""),
+        "imo":         imo,
+        "name":        primary_name,
+        "aliases":     aliases,
+        "programs":    programs,
+        "flag":        features.get("Vessel Flag", ""),
+        "call_sign":   features.get("Vessel Call Sign", ""),
         "vessel_type": features.get("VESSEL TYPE", ""),
-        "owner": features.get("Vessel Owner", ""),
-        "tonnage": features.get("Vessel Tonnage", features.get("Vessel Gross Registered Tonnage", "")),
-        "year_build": features.get("Vessel Year of Build", ""),
+        "owner":       features.get("Vessel Owner", ""),
+        "tonnage":     features.get("Vessel Tonnage", features.get("Vessel Gross Registered Tonnage", "")),
+        "year_build":  features.get("Vessel Year of Build", ""),
     })
 
 with open(OUT, "w") as f:
@@ -67,3 +70,4 @@ with open(OUT, "w") as f:
 
 print(f"Done — {len(vessels)} vessels written to {OUT}")
 os.remove("sdn.xml")
+print("Cleaned up sdn.xml")
