@@ -1,7 +1,12 @@
-import re, json, os, sys, subprocess
+import re, json, os, sys, subprocess, html
 
 URL = "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML"
 OUT = "vessels.json"
+
+def dec(v):
+    """Decode XML/HTML entities (&amp; &lt; etc.) captured verbatim by the regex parser."""
+    return html.unescape(v) if isinstance(v, str) else v
+
 
 # ── Download ──────────────────────────────────────────────────────────────────
 print("Downloading SDN Enhanced XML (this takes 60-90 seconds, file is ~108MB)...")
@@ -50,9 +55,9 @@ for m in entity_pattern.finditer(content):
             if fn:
                 nm = fn.group(1).strip()
                 if '<isPrimary>true</isPrimary>' in ne:
-                    primary_name = nm
+                    primary_name = dec(nm)
                 else:
-                    aliases.append(nm)
+                    aliases.append(dec(nm))
 
     features = {}
     fb = re.search(r'<features>(.*?)</features>', body, re.DOTALL)
@@ -61,7 +66,7 @@ for m in entity_pattern.finditer(content):
             ft = re.search(r'<type[^>]*>([^<]+)</type>', fe)
             fv = re.search(r'<value>([^<]+)</value>', fe)
             if ft and fv:
-                features[ft.group(1).strip()] = fv.group(1).strip()
+                features[ft.group(1).strip()] = dec(fv.group(1).strip())
 
     imo = ''
     idb = re.search(r'<identityDocuments>(.*?)</identityDocuments>', body, re.DOTALL)
