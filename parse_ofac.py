@@ -1,21 +1,41 @@
-import re, json, urllib.request, os
+import re, json, os, sys, subprocess
 
 URL = "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML"
 OUT = "vessels.json"
 
-print("Downloading SDN Enhanced XML...")
-urllib.request.urlretrieve(URL, "sdn.xml")
-print("Download complete.")
+# ── Download ──────────────────────────────────────────────────────────────────
+print("Downloading SDN Enhanced XML (this takes 60-90 seconds, file is ~108MB)...")
+result = subprocess.run(
+    ["curl", "-L", "--retry", "3", "--retry-delay", "5",
+     "--connect-timeout", "30", "--max-time", "300",
+     "-o", "sdn.xml", URL],
+    capture_output=True, text=True
+)
+if result.returncode != 0:
+    print("ERROR: curl failed:")
+    print(result.stderr)
+    sys.exit(1)
 
+size = os.path.getsize("sdn.xml")
+print(f"Downloaded: {size:,} bytes")
+if size < 1_000_000:
+    print("ERROR: file too small — download may have failed. Contents:")
+    with open("sdn.xml") as f:
+        print(f.read(2000))
+    sys.exit(1)
+
+# ── Parse ─────────────────────────────────────────────────────────────────────
+print("Reading file...")
 with open("sdn.xml", "r", encoding="utf-8") as f:
     content = f.read()
-
-print(f"File size: {len(content):,} chars — Parsing vessels...")
+print(f"File size: {len(content):,} chars")
 
 entity_pattern = re.compile(r'<entity id="(\d+)">(.*?)</entity>', re.DOTALL)
 
 vessels = []
+total = 0
 for m in entity_pattern.finditer(content):
+    total += 1
     body = m.group(2)
     if '<entityType refId="602">Vessel</entityType>' not in body:
         continue
@@ -65,9 +85,16 @@ for m in entity_pattern.finditer(content):
         "year_build":  features.get("Vessel Year of Build", ""),
     })
 
+print(f"Total entities scanned: {total:,}")
+print(f"Vessel entities found:  {len(vessels):,}")
+print(f"Vessels with IMO:       {sum(1 for v in vessels if v['imo']):,}")
+
+# ── Write output ──────────────────────────────────────────────────────────────
 with open(OUT, "w") as f:
     json.dump(vessels, f)
 
-print(f"Done — {len(vessels)} vessels written to {OUT}")
+out_size = os.path.getsize(OUT)
+print(f"Written {OUT} ({out_size:,} bytes)")
+
 os.remove("sdn.xml")
-print("Cleaned up sdn.xml")
+print("Cleaned up. Done.")
