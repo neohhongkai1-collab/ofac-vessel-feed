@@ -11,11 +11,19 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Run parser
         run: python3 parse_ofac.py
+
+      - name: Show vessels.json info
+        run: |
+          echo "File size: $(wc -c < vessels.json) bytes"
+          echo "First 200 chars:"
+          head -c 200 vessels.json
 
       - name: Commit vessels.json
         run: |
